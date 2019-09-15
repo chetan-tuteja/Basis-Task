@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                xmlns:app="http://schemas.android.com/apk/res-auto" xmlns:tools="http://schemas.android.com/tools">
+
+    <androidx.cardview.widget.CardView
+            android:layout_width="match_parent"
+            android:layout_height="500dp"
+            app:cardCornerRadius="6dp"
+            app:cardElevation="10dp"
+            app:cardMaxElevation="15dp"
+            android:layout_margin="20dp"
+            android:paddingStart="15dp"
+            android:paddingEnd="15dp"
+            android:elevation="10dp"
+    >
+
+
+            <LinearLayout android:layout_width="match_parent"
+                          android:layout_height="match_parent"
+                          android:weightSum="100"
+                          android:orientation="vertical"
+            >
+
+        <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="0dp"
+                android:layout_weight="20"
+                tools:text="ID"
+                android:textSize="36sp"
+                android:textColor="@android:color/black"
+                android:textStyle="bold"
+                android:layout_gravity="center_horizontal"
+                android:id="@+id/id_TV"
+        />
+
+            <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="0dp"
+                    android:layout_weight="70"
+                    tools:text="Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore et dolore magna aliqua."
+                    android:textSize="24sp"
+                    android:padding="10dp"
+                    android:layout_gravity="center_horizontal"
+                    android:textAlignment="center"
+                    android:id="@+id/text_TV"
+            />
+
+            <TextView android:layout_width="wrap_content"
+                      android:layout_height="0dp"
+                      android:layout_weight="10"
+                      tools:text="15"
+                      android:gravity="bottom|end"
+                      android:layout_margin="10dp"
+                      android:layout_gravity="end"
+                      android:textSize="17sp"
+                      android:textStyle="bold"
+                      android:id="@+id/idCount_TV"
+            />
+
+            </LinearLayout>
+
+
+
+
+
+
+    </androidx.cardview.widget.CardView>
+
+
+
+</RelativeLayout>
