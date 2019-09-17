@@ -8,27 +8,34 @@ import android.os.Bundle
 import android.util.Log
 import android.view.View
 import android.widget.Toast
+import androidx.lifecycle.Observer
+import androidx.lifecycle.ViewModelProvider
 import com.afollestad.materialdialogs.MaterialDialog
 import com.chetantuteja.basis.adapter.DataRecyclerAdapter
 import com.chetantuteja.basis.datamodels.Data
 import com.chetantuteja.basis.datamodels.Feed
 import com.chetantuteja.basis.util.CustomConverterFactory
 import com.littlemango.stacklayoutmanager.StackLayoutManager
+import io.reactivex.android.schedulers.AndroidSchedulers
+import io.reactivex.disposables.CompositeDisposable
+import io.reactivex.schedulers.Schedulers
 import kotlinx.android.synthetic.main.activity_main.*
 import retrofit2.Call
 import retrofit2.Callback
 import retrofit2.Response
 import retrofit2.Retrofit
+import retrofit2.adapter.rxjava2.RxJava2CallAdapterFactory
 
 class MainActivity : AppCompatActivity() {
 
-    companion object{
+    companion object {
         private const val TAG = "MainActivity"
         private const val BASE_URL = "https://git.io"
     }
 
     //Variables
     private val mAdapter = DataRecyclerAdapter()
+    private val compositeDisposable = CompositeDisposable()
     private var currentPosition = 0
 
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -38,13 +45,14 @@ class MainActivity : AppCompatActivity() {
     }
 
     //Sets up RecyclerView
-    private fun setupRecyclerView(){
-        val orientation = StackLayoutManager.ScrollOrientation.RIGHT_TO_LEFT   //Can be set to any one among R-L or L-R or T-B or B-T
+    private fun setupRecyclerView() {
+        val orientation =
+            StackLayoutManager.ScrollOrientation.RIGHT_TO_LEFT   //Can be set to any one among R-L or L-R or T-B or B-T
         val manager = StackLayoutManager(orientation)
         mainRV.layoutManager = manager
 
         //Helps save position in case of orientation change(No need to implement in case of Viewmodels)
-        manager.setItemChangedListener(object: StackLayoutManager.ItemChangedListener{
+        manager.setItemChangedListener(object : StackLayoutManager.ItemChangedListener {
             override fun onItemChanged(position: Int) {
                 currentPosition = position
             }
@@ -56,50 +64,39 @@ class MainActivity : AppCompatActivity() {
     }
 
     //Fetches JSON Data from the API
-    private fun loadJSONData(){
-        if(!isNetworkAvailable()){
+    private fun loadJSONData() {
+        if (!isNetworkAvailable()) {
             popupDialog()
             return
         }
-        val thread = Thread{
-            val retrofit = Retrofit.Builder()
-                .baseUrl(BASE_URL)
-                .client(okhttp3.OkHttpClient())
-                .addConverterFactory(CustomConverterFactory())
-                .build()
 
-            val feedAPI = retrofit.create(FeedAPI::class.java)
-            val feed = feedAPI.getFeed()
-            feed.enqueue(object: Callback<Feed> {
-                override fun onFailure(call: Call<Feed>, t: Throwable) {
-                    Log.e(TAG, "onFailure: Unable to get data " + t.message.toString())
-                    Toast.makeText(this@MainActivity, "An Error Occurred.", Toast.LENGTH_SHORT).show()
-                }
+        val retrofit = Retrofit.Builder()
+            .baseUrl(BASE_URL)
+            .client(okhttp3.OkHttpClient())
+            .addConverterFactory(CustomConverterFactory())
+            .addCallAdapterFactory(RxJava2CallAdapterFactory.create())
+            .build()
 
-                override fun onResponse(call: Call<Feed>, response: Response<Feed>) {
-                    //Log.d(TAG, "onResponse:  Feed: " + response.body()!!.data[0].id)
-                    Log.d(TAG, "onResponse:  Server Response: $response")
-                    setupPostFeed(response)
-                }
-
+        val feedAPI = retrofit.create(FeedAPI::class.java)
+        val disposable = feedAPI.getFeed()
+            .subscribeOn(Schedulers.io())
+            .unsubscribeOn(Schedulers.computation())
+            .observeOn(AndroidSchedulers.mainThread())
+            .subscribe({
+                mainRV.adapter = mAdapter
+                Log.d(TAG, "Subscribe: ${it.data} ")
+                mAdapter.submitList(it.data)
+                mainRV.smoothScrollToPosition(currentPosition)
+            }, {
+                Toast.makeText(this@MainActivity, "Something went wrong: ${it.message}", Toast.LENGTH_SHORT).show()
             })
-        }
-        thread.start()
-    }
 
-    //Submits Data to Recycler View
-    private fun setupPostFeed(response: Response<Feed>){
-        val resBody = response.body()
-        if (resBody != null) {
-            mainRV.adapter = mAdapter
-            mAdapter.submitList(resBody.data)
-            mainRV.smoothScrollToPosition(currentPosition)
-        }
+        compositeDisposable.add(disposable)
     }
 
     //Reset the stack to first position
-    fun resetStackClick(view: View){
-        if(isNetworkAvailable() && mAdapter.itemCount != 0){
+    fun resetStackClick(view: View) {
+        if (isNetworkAvailable() && mAdapter.itemCount != 0) {
             mainRV.smoothScrollToPosition(0)
         } else {
             loadJSONData()
@@ -121,11 +118,11 @@ class MainActivity : AppCompatActivity() {
     }
 
     //Pops up Error Dialog
-    private fun popupDialog(){
+    private fun popupDialog() {
         MaterialDialog(this@MainActivity).show {
             title(R.string.error)
             message(R.string.no_internet)
-            positiveButton(R.string.ok_btn){ dialog ->
+            positiveButton(R.string.ok_btn) { dialog ->
                 dialog.dismiss()
             }
             cornerRadius(16f)
@@ -140,14 +137,19 @@ class MainActivity : AppCompatActivity() {
 
     override fun onSaveInstanceState(outState: Bundle) {
         super.onSaveInstanceState(outState)
-        outState.putInt("currentPosition",currentPosition)
+        outState.putInt("currentPosition", currentPosition)
     }
 
     override fun onRestoreInstanceState(savedInstanceState: Bundle) {
         super.onRestoreInstanceState(savedInstanceState)
-        if(savedInstanceState.containsKey("currentPosition")){
+        if (savedInstanceState.containsKey("currentPosition")) {
             currentPosition = savedInstanceState.getInt("currentPosition")
             loadJSONData()
         }
+    }
+
+    override fun onDestroy() {
+        compositeDisposable.dispose()
+        super.onDestroy()
     }
 }
